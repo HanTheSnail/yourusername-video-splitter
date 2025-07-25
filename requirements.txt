@@ -1,4 +1,5 @@
 streamlit>=1.28.0
+gdown>=4.7.1
 moviepy>=1.0.3
 requests>=2.31.0
 imageio-ffmpeg>=0.4.9
