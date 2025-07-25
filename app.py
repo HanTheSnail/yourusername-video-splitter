@@ -86,16 +86,19 @@ def split_video_ffmpeg(input_path, output_dir, chunk_duration=1500):
     return output_files
 
 def split_video_moviepy(input_path, output_dir, chunk_duration=1500):
-    """Fallback using moviepy"""
+    """Fallback using moviepy with better error handling"""
     try:
         from moviepy.editor import VideoFileClip
         
         status_text = st.empty()
         status_text.text("Loading video...")
         
+        # Load video with timeout protection
         video = VideoFileClip(input_path)
         total_duration = video.duration
         num_chunks = math.ceil(total_duration / chunk_duration)
+        
+        status_text.text(f"Video loaded: {total_duration:.1f}s, creating {num_chunks} chunks")
         
         output_files = []
         progress_bar = st.progress(0)
@@ -108,27 +111,47 @@ def split_video_moviepy(input_path, output_dir, chunk_duration=1500):
             output_filename = f"{input_name}_part_{i+1:02d}.mp4"
             output_path = os.path.join(output_dir, output_filename)
             
-            status_text.text(f"Extracting chunk {i+1}/{num_chunks}")
+            status_text.text(f"Processing chunk {i+1}/{num_chunks} ({start_time:.0f}s-{end_time:.0f}s)")
             
-            chunk = video.subclip(start_time, end_time)
-            chunk.write_videofile(output_path, verbose=False, logger=None)
-            chunk.close()
-            
-            if os.path.exists(output_path):
-                output_files.append(output_path)
+            try:
+                # Extract chunk with minimal encoding settings
+                chunk = video.subclip(start_time, end_time)
+                
+                # Write with simpler settings for better compatibility
+                chunk.write_videofile(
+                    output_path,
+                    codec='libx264',
+                    audio_codec='aac',
+                    temp_audiofile='temp-audio.m4a',
+                    remove_temp=True,
+                    verbose=False,
+                    logger=None
+                )
+                chunk.close()
+                
+                if os.path.exists(output_path):
+                    output_files.append(output_path)
+                    status_text.text(f"✅ Chunk {i+1}/{num_chunks} completed")
+                else:
+                    status_text.text(f"⚠️ Chunk {i+1}/{num_chunks} failed to create")
+                
+            except Exception as chunk_error:
+                st.error(f"Error processing chunk {i+1}: {str(chunk_error)}")
+                continue
             
             progress = (i + 1) / num_chunks
             progress_bar.progress(progress)
         
         video.close()
-        status_text.text("✅ Splitting complete!")
+        status_text.text("✅ All chunks processed!")
         return output_files
         
     except ImportError:
         st.error("MoviePy not installed. Please check requirements.txt")
         return []
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"MoviePy error: {str(e)}")
+        st.info("💡 Try a smaller video or different format. Large files may timeout on free hosting.")
         return []
 
 def download_from_url(url, output_path):
@@ -216,7 +239,7 @@ def main():
     # URL input
     st.subheader("🔗 Enter Video URL")
     video_url = st.text_input(
-        "",
+        "Video URL",
         placeholder="https://example.com/video.mp4",
         help="Direct links work best. Supports Google Drive, Dropbox, OneDrive, etc.",
         label_visibility="collapsed"
