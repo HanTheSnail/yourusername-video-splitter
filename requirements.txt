@@ -1,5 +1,20 @@
+# Streamlit framework
 streamlit>=1.28.0
+
+# Google Drive downloader
 gdown>=4.7.1
+
+# Video processing
 moviepy>=1.0.3
-requests>=2.31.0
+
+# Core MoviePy dependencies (pulled in transitively, but we pin them explicitly to be safe)
+numpy>=1.23.0
+imageio>=2.27.0
 imageio-ffmpeg>=0.4.9
+tqdm>=4.65.0
+decorator>=5.1.1
+Pillow>=9.0.0
+
+# HTTP fetching
+requests>=2.31.0
+
